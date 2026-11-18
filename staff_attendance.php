@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     $date=$_POST['date']??''; $n=0;
     if (!strtotime($date)||$date>date('Y-m-d')) flash_set('msg','Invalid date.');
     else {
-      $q=db()->prepare("SELECT id FROM users WHERE role<>'student' AND status='active'".($s!==null?' AND branch_id='.(int)$s:($branchId?' AND branch_id='.(int)$branchId:''))); $q->execute(); $valid=array_flip($q->fetchAll(PDO::FETCH_COLUMN));
+      $q=db()->prepare("SELECT id FROM users WHERE status='active'".($s!==null?' AND branch_id='.(int)$s:($branchId?' AND branch_id='.(int)$branchId:''))); $q->execute(); $valid=array_flip($q->fetchAll(PDO::FETCH_COLUMN));
       $up=db()->prepare('INSERT INTO staff_attendance (user_id,att_date,status,source,marked_by) VALUES (?,?,?,\'manual\',?) ON DUPLICATE KEY UPDATE status=VALUES(status),source=\'manual\',marked_by=VALUES(marked_by)');
       $posted=$_POST['st']??[]; if(!is_array($posted)) $posted=[];
       foreach ($posted as $uid=>$v) { if (!isset($valid[(int)$uid])||!isset(ST_LABELS[$v])) continue; $up->execute([(int)$uid,$date,$v,$me]); $n++; }
@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     if (!$branchId) flash_set('msg','Choose a branch.');
     elseif (!$f||$f['error']!==UPLOAD_ERR_OK||$f['size']>2*1024*1024) flash_set('msg','Please choose a CSV/TXT file under 2 MB.');
     else {
-      $q=db()->prepare("SELECT id,fingerprint_id FROM users WHERE role<>'student' AND status='active' AND branch_id=? AND fingerprint_id IS NOT NULL"); $q->execute([$branchId]);
+      $q=db()->prepare("SELECT id,fingerprint_id FROM users WHERE status='active' AND branch_id=? AND fingerprint_id IS NOT NULL"); $q->execute([$branchId]);
       $map=[]; foreach($q->fetchAll() as $r) $map[fp_key($r['fingerprint_id'])]=(int)$r['id'];
       $unknown=[]; $cnt=0; $skipped=0;
       $get=db()->prepare('SELECT status,source FROM staff_attendance WHERE user_id=? AND att_date=?');
@@ -63,18 +63,18 @@ $date=$_GET['date']??date('Y-m-d'); if(!strtotime($date)||$date>date('Y-m-d')) $
 <?php if($s===null):?><div class="col-md-4"><select class="form-select" name="branch_id" required><option value="">Branch</option><?php foreach($branches as $b):?><option value="<?=$b['id']?>" <?=$branchId===(int)$b['id']?'selected':''?>><?=e($b['name'])?></option><?php endforeach;?></select></div><?php endif;?>
 <div class="col"><input class="form-control" type="file" name="file" accept=".csv,.txt,.dat" required></div><div class="col-md-2"><button class="btn-ui w-100">Import</button></div></form></div>
 <?php else:
-  $w="u.role<>'student' AND u.status='active'".($s!==null?' AND u.branch_id='.(int)$s:($branchId?' AND u.branch_id='.(int)$branchId:''));
+  $w="u.status='active'".($s!==null?' AND u.branch_id='.(int)$s:($branchId?' AND u.branch_id='.(int)$branchId:''));
   $q=db()->prepare("SELECT u.id,u.full_name,u.role,u.job_title,a.status,a.check_in,a.check_out FROM users u LEFT JOIN staff_attendance a ON a.user_id=u.id AND a.att_date=? WHERE $w ORDER BY u.full_name"); $q->execute([$date]); $staff=$q->fetchAll();?>
 <form method="get" class="card-ui mb-3 row g-2">
  <?php if($s===null):?><div class="col-12 col-md-5"><select class="form-select" name="branch"><option value="">All branches</option><?php foreach($branches as $b):?><option value="<?=$b['id']?>" <?=$branchId===(int)$b['id']?'selected':''?>><?=e($b['name'])?></option><?php endforeach;?></select></div><?php endif;?>
  <div class="col-8 col-md-4"><input class="form-control" type="date" name="date" value="<?=e($date)?>" max="<?=date('Y-m-d')?>"></div><div class="col-4 col-md-3"><button class="btn-ui w-100">Load</button></div></form>
 <form method="post"><input type="hidden" name="csrf" value="<?=csrf()?>"><input type="hidden" name="act" value="save"><input type="hidden" name="date" value="<?=e($date)?>"><?php if($s===null&&$branchId):?><input type="hidden" name="branch_id" value="<?=$branchId?>"><?php endif;?>
-<input class="form-control mb-2" id="sfFilter" placeholder="Search staff name"><div class="card-ui" data-pager="10" data-filter="#sfFilter"><div class="mb-2" data-pg-skip><button type="button" class="btn btn-sm btn-light rounded-pill" onclick="document.querySelectorAll('.p-in').forEach(r=>r.checked=true)">All present</button></div>
+<div class="card-ui"><div class="mb-2"><button type="button" class="btn btn-sm btn-light rounded-pill" onclick="document.querySelectorAll('.p-in').forEach(r=>r.checked=true)">All present</button></div>
 <?php foreach($staff as $z):?><div class="d-flex align-items-center gap-2 py-2 border-top flex-wrap">
  <div class="me-auto"><div><?=e($z['full_name'])?></div><div class="lbl"><?=e($z['job_title']?:ucwords(str_replace('_',' ',$z['role'])))?><?=$z['check_in']?' · in '.e(substr($z['check_in'],0,5)).($z['check_out']?' · out '.e(substr($z['check_out'],0,5)):''):''?></div></div>
  <div class="btn-group btn-group-sm"><?php foreach(ST_LABELS as $k=>$l): $cls=['present'=>'success','half_day'=>'warning','leave'=>'primary','absent'=>'danger'][$k];?>
   <input type="radio" class="btn-check <?=$k==='present'?'p-in':''?>" name="st[<?=$z['id']?>]" id="s<?=$z['id'].$k?>" value="<?=$k?>" <?=$z['status']===$k?'checked':''?>><label class="btn btn-outline-<?=$cls?>" for="s<?=$z['id'].$k?>"><?=$l?></label><?php endforeach;?></div></div>
-<?php endforeach; if(!$staff):?><p class="lbl mb-0" data-pg-skip>No active staff found.</p><?php endif;?>
-<?php if($staff):?><button class="btn-ui mt-3 w-100" data-pg-skip>Save staff attendance</button><?php endif;?></div></form>
+<?php endforeach; if(!$staff):?><p class="lbl mb-0">No active staff found.</p><?php endif;?>
+<?php if($staff):?><button class="btn-ui mt-3 w-100">Save staff attendance</button><?php endif;?></div></form>
 <?php endif;?>
 <?php require __DIR__.'/includes/footer.php';

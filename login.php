@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     session_regenerate_id(true);
     db()->prepare('UPDATE users SET failed_logins=0,locked_until=NULL,last_login=NOW() WHERE id=?')->execute([$u['id']]);
     unset($u['password_hash']); $_SESSION['user']=$u; $_SESSION['last']=time();
-    log_activity('login','Signed in'); header('Location: '.($u['role']==='student'?'my_home.php':'dashboard.php')); exit;
+    log_activity('login','Signed in'); header('Location: dashboard.php'); exit;
   } else {
     if ($u) { $n=$u['failed_logins']+1; $lock=$n>=5?date('Y-m-d H:i:s',time()+600):null;
       db()->prepare('UPDATE users SET failed_logins=?,locked_until=? WHERE id=?')->execute([$lock?0:$n,$lock,$u['id']]); }
@@ -18,14 +18,13 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
   }
 }
 ?><!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<script src="assets/js/view.js"></script>
 <title>Sign in · <?=APP_NAME?></title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <link href="assets/css/oneui.css" rel="stylesheet"></head><body>
 <div class="login-wrap"><div class="login-card card-ui p-4">
 <div class="text-center mb-4"><div class="brand justify-content-center"><i class="bi bi-mortarboard-fill"></i><?=APP_NAME?></div>
-<div class="lbl">English Language Institute · Staff &amp; student login</div></div>
+<div class="lbl">English Language Institute · Office use only</div></div>
 <?php if($err):?><div class="alert alert-danger rounded-4"><?=e($err)?></div><?php endif;?>
 <?php if(isset($_GET['reset'])):?><div class="alert alert-success rounded-4">Password updated. Please sign in.</div><?php endif;?>
 <?php if(isset($_GET['timeout'])):?><div class="alert alert-warning rounded-4">Session expired. Please sign in again.</div><?php endif;?>

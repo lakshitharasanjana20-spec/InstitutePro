@@ -97,9 +97,8 @@ $branches=db()->query("SELECT id,name FROM branches WHERE status='active' ORDER 
  <div class="col-4 col-md-2"><button class="btn-ui w-100">Load</button></div></form>
 <?php if($bid):?>
 <form method="post"><input type="hidden" name="csrf" value="<?=csrf()?>"><input type="hidden" name="act" value="save"><input type="hidden" name="batch_id" value="<?=$bid?>"><input type="hidden" name="date" value="<?=e($date)?>">
-<input class="form-control mb-2" id="stFilter" placeholder="Search student name or ID">
-<div class="card-ui" data-pager="10" data-filter="#stFilter">
-<?php if($canMark && $students):?><div class="mb-2" data-pg-skip><button type="button" class="btn btn-sm btn-light rounded-pill" onclick="document.querySelectorAll('.p-in').forEach(r=>r.checked=true)">All present</button></div><?php endif;?>
+<div class="card-ui">
+<?php if($canMark && $students):?><div class="mb-2"><button type="button" class="btn btn-sm btn-light rounded-pill" onclick="document.querySelectorAll('.p-in').forEach(r=>r.checked=true)">All present</button></div><?php endif;?>
 <?php foreach($students as $r): $cur=$recs[$r['id']]['status']??''; ?>
 <div class="d-flex align-items-center gap-2 py-2 border-top flex-wrap">
  <div class="me-auto"><div><?=e($r['full_name'])?> <?php if($r['status']==='inactive'):?><span class="badge rounded-pill text-bg-secondary">inactive</span><?php endif;?></div>
@@ -108,8 +107,8 @@ $branches=db()->query("SELECT id,name FROM branches WHERE status='active' ORDER 
   <input type="radio" class="btn-check p-in" name="st[<?=$r['id']?>]" id="p<?=$r['id']?>" value="present" <?=$cur==='present'?'checked':''?> <?=$canMark?'':'disabled'?>><label class="btn btn-outline-success rounded-start-pill" for="p<?=$r['id']?>">Present</label>
   <input type="radio" class="btn-check" name="st[<?=$r['id']?>]" id="a<?=$r['id']?>" value="absent" <?=$cur==='absent'?'checked':''?> <?=$canMark?'':'disabled'?>><label class="btn btn-outline-danger rounded-end-pill" for="a<?=$r['id']?>">Absent</label></div>
 </div>
-<?php endforeach; if(!$students):?><p class="lbl mb-0" data-pg-skip>No students enrolled in this class yet.</p><?php endif;?>
-<?php if($canMark && $students):?><button class="btn-ui mt-3 w-100" data-pg-skip>Save attendance</button><?php endif;?>
+<?php endforeach; if(!$students):?><p class="lbl mb-0">No students enrolled in this class yet.</p><?php endif;?>
+<?php if($canMark && $students):?><button class="btn-ui mt-3 w-100">Save attendance</button><?php endif;?>
 </div></form>
 <?php endif; endif;?>
 

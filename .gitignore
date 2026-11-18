@@ -1,0 +1,8 @@
+*-debug.log
+firestore-debug.log
+firebase-debug.log
+.gradle/
+build/
+.kotlin/
+.build-outputs/
+debug.keystore

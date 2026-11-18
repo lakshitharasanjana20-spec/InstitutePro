@@ -1,0 +1,197 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+             (!('email' in data) || (data.email is string && data.email.size() <= 160)) &&
+             (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+             data.activeRole in ['super_admin', 'branch_manager', 'teacher', 'finance', 'other', 'student'];
+    }
+
+    function isValidCloudStudent(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.studentCode is string && data.studentCode.size() >= 1 && data.studentCode.size() <= 40 &&
+             data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 120 &&
+             data.gender in ['Male', 'Female'] &&
+             data.branchName is string && data.branchName.size() >= 1 && data.branchName.size() <= 80 &&
+             data.status in ['active', 'inactive'] &&
+             data.phone is string && data.phone.size() >= 1 && data.phone.size() <= 40 &&
+             data.registeredAt is string && data.registeredAt.size() >= 1 && data.registeredAt.size() <= 20;
+    }
+
+    function isValidCloudPayment(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.receiptNo is string && data.receiptNo.size() >= 1 && data.receiptNo.size() <= 60 &&
+             data.studentName is string && data.studentName.size() >= 1 && data.studentName.size() <= 120 &&
+             data.studentCode is string && data.studentCode.size() >= 1 && data.studentCode.size() <= 40 &&
+             data.amount is number && data.amount >= 0 &&
+             data.method is string && data.method.size() >= 1 && data.method.size() <= 40 &&
+             data.paidOn is string && data.paidOn.size() >= 1 && data.paidOn.size() <= 20 &&
+             data.voided is bool;
+    }
+
+    function isValidCloudAttendance(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.batchName is string && data.batchName.size() >= 1 && data.batchName.size() <= 120 &&
+             data.attDate is string && data.attDate.size() >= 1 && data.attDate.size() <= 20 &&
+             data.presentCount is int && data.presentCount >= 0 &&
+             data.absentCount is int && data.absentCount >= 0;
+    }
+
+    function isValidCloudActivity(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.actorName is string && data.actorName.size() >= 1 && data.actorName.size() <= 120 &&
+             data.action is string && data.action.size() >= 1 && data.action.size() <= 60 &&
+             data.details is string && data.details.size() <= 500 &&
+             data.recordedAt is string && data.recordedAt.size() >= 1 && data.recordedAt.size() <= 30;
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().userId == userId &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'activeRole', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'email', 'photoUrl', 'activeRole', 'createdAt', 'updatedAt']) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'photoUrl', 'activeRole', 'updatedAt']);
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /students/{studentId} {
+        allow get: if isOwner(userId) && isValidId(studentId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(studentId) &&
+                         incoming().userId == userId &&
+                         incoming().keys().hasAll(['userId', 'studentCode', 'fullName', 'gender', 'branchName', 'status', 'phone', 'registeredAt', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'studentCode', 'fullName', 'gender', 'branchName', 'status', 'phone', 'registeredAt', 'createdAt', 'updatedAt']) &&
+                         incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         isValidCloudStudent(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(studentId) &&
+                         isValidCloudStudent(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['studentCode', 'fullName', 'gender', 'branchName', 'status', 'phone', 'registeredAt', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(studentId);
+      }
+
+      match /payments/{paymentId} {
+        allow get: if isOwner(userId) && isValidId(paymentId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(paymentId) &&
+                         incoming().userId == userId &&
+                         incoming().keys().hasAll(['userId', 'receiptNo', 'studentName', 'studentCode', 'amount', 'method', 'paidOn', 'voided', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'receiptNo', 'studentName', 'studentCode', 'amount', 'method', 'paidOn', 'voided', 'createdAt', 'updatedAt']) &&
+                         incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         isValidCloudPayment(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(paymentId) &&
+                         isValidCloudPayment(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['receiptNo', 'studentName', 'studentCode', 'amount', 'method', 'paidOn', 'voided', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(paymentId);
+      }
+
+      match /attendance/{attId} {
+        allow get: if isOwner(userId) && isValidId(attId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(attId) &&
+                         incoming().userId == userId &&
+                         incoming().keys().hasAll(['userId', 'batchName', 'attDate', 'presentCount', 'absentCount', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'batchName', 'attDate', 'presentCount', 'absentCount', 'createdAt', 'updatedAt']) &&
+                         incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         isValidCloudAttendance(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(attId) &&
+                         isValidCloudAttendance(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['batchName', 'attDate', 'presentCount', 'absentCount', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(attId);
+      }
+
+      match /activity/{logId} {
+        allow get: if isOwner(userId) && isValidId(logId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(logId) &&
+                         incoming().userId == userId &&
+                         incoming().keys().hasAll(['userId', 'actorName', 'action', 'details', 'recordedAt', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'actorName', 'action', 'details', 'recordedAt', 'createdAt', 'updatedAt']) &&
+                         incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         isValidCloudActivity(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(logId) &&
+                         isValidCloudActivity(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['actorName', 'action', 'details', 'recordedAt', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(logId);
+      }
+    }
+  }
+}

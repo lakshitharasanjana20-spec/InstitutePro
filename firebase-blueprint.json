@@ -1,0 +1,133 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Authenticated Google user profile and selected InstitutePro workspace role. Clients must send FieldValue.serverTimestamp() for createdAt and updatedAt.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the account owner"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name from Google account"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Optional Google account email"
+        },
+        "photoUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "Optional Google profile photo URL"
+        },
+        "activeRole": {
+          "type": "string",
+          "enum": ["super_admin", "branch_manager", "teacher", "finance", "other", "student"],
+          "description": "Active workspace role selected inside InstitutePro"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of profile creation (FieldValue.serverTimestamp())"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update (FieldValue.serverTimestamp())"
+        }
+      },
+      "required": ["userId", "displayName", "activeRole", "createdAt", "updatedAt"]
+    },
+    "CloudStudent": {
+      "title": "Cloud Student",
+      "description": "User-scoped cloud backup of an InstitutePro student record.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "studentCode": { "type": "string" },
+        "fullName": { "type": "string" },
+        "gender": { "type": "string", "enum": ["Male", "Female"] },
+        "branchName": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "phone": { "type": "string" },
+        "registeredAt": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "studentCode", "fullName", "gender", "branchName", "status", "phone", "registeredAt", "createdAt", "updatedAt"]
+    },
+    "CloudPayment": {
+      "title": "Cloud Payment",
+      "description": "User-scoped cloud backup of a student fee payment receipt.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "receiptNo": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentCode": { "type": "string" },
+        "amount": { "type": "number" },
+        "method": { "type": "string" },
+        "paidOn": { "type": "string" },
+        "voided": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "receiptNo", "studentName", "studentCode", "amount", "method", "paidOn", "voided", "createdAt", "updatedAt"]
+    },
+    "CloudAttendanceSummary": {
+      "title": "Cloud Attendance Summary",
+      "description": "User-scoped cloud summary of daily attendance per batch.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "batchName": { "type": "string" },
+        "attDate": { "type": "string" },
+        "presentCount": { "type": "integer" },
+        "absentCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "batchName", "attDate", "presentCount", "absentCount", "createdAt", "updatedAt"]
+    },
+    "CloudActivityEntry": {
+      "title": "Cloud Activity Entry",
+      "description": "User-scoped audit log entry synced to Cloud Firestore.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "actorName": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "recordedAt": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "actorName", "action", "details", "recordedAt", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Authenticated user's root profile and active role configuration"
+    },
+    "/users/{userId}/students/{studentId}": {
+      "schema": { "$ref": "#/entities/CloudStudent" },
+      "description": "User-owned cloud student roster backup"
+    },
+    "/users/{userId}/payments/{paymentId}": {
+      "schema": { "$ref": "#/entities/CloudPayment" },
+      "description": "User-owned cloud fee payment receipts backup"
+    },
+    "/users/{userId}/attendance/{attId}": {
+      "schema": { "$ref": "#/entities/CloudAttendanceSummary" },
+      "description": "User-owned cloud daily attendance summaries"
+    },
+    "/users/{userId}/activity/{logId}": {
+      "schema": { "$ref": "#/entities/CloudActivityEntry" },
+      "description": "User-owned cloud audit log entries"
+    }
+  }
+}
